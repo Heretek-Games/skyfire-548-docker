@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Entrypoint for authserver and worldserver containers.
-# Runs pre-flight checks, then execs the configured binary.
+# Runs pre-flight checks, materialises the operator config from the .dist
+# template shipped in the artifact, substitutes env references, then
+# execs the configured binary.
 set -euo pipefail
 
 SERVICE="${SERVICE:-auth}"
@@ -24,7 +26,33 @@ check_binary() {
 }
 
 check_config() {
+  # Either the operator has already produced a config, or the
+  # image-provided .dist template exists so we can materialise one.
   [ -f "${CONFIG_FILE}" ] || [ -f "${CONFIG_FILE}.dist" ]
+}
+
+materialize_config() {
+  # Copy from .dist on first boot (named volume is empty).
+  if [ ! -f "${CONFIG_FILE}" ] && [ -f "${CONFIG_FILE}.dist" ]; then
+    cp "${CONFIG_FILE}.dist" "${CONFIG_FILE}"
+  fi
+}
+
+substitute_config_env() {
+  # In-place ${VAR} -> env-value substitution. The .dist configs only
+  # reference the well-known MYSQL_* variables below; we skip any that
+  # are unset rather than writing empty strings into connection fields.
+  if [ ! -f "${CONFIG_FILE}" ]; then
+    return 0
+  fi
+  local var val esc
+  for var in MYSQL_HOST MYSQL_PORT MYSQL_USER MYSQL_PASSWORD MYSQL_DB; do
+    val="${!var:-}"
+    [ -z "$val" ] && continue
+    # Escape sed-replacement metacharacters: & \ and the | delimiter.
+    esc=$(printf '%s' "$val" | sed -e 's/[&|\\]/\\&/g')
+    sed -i "s|\${${var}}|${esc}|g" "${CONFIG_FILE}"
+  done
 }
 
 run_checks() {
@@ -42,6 +70,8 @@ case "${1:-}" in
 esac
 
 run_checks
+materialize_config
+substitute_config_env
 
 # Trap SIGTERM/SIGINT and forward to the child.
 forward_signal() {

@@ -9,10 +9,9 @@ if ! [[ "${HEALTHCHECK_PORT}" =~ ^[0-9]+$ ]] || [ "${HEALTHCHECK_PORT}" -lt 1 ] 
 fi
 
 PORT="${HEALTHCHECK_PORT:-3724}"
-HOST="${HEALTHCHECK_HOST:-127.0.0.1}"
 
 # bash's /dev/tcp is the lightest possible probe — no curl, no nc.
-if (echo > "/dev/tcp/${HOST}/${PORT}") >/dev/null 2>&1; then
+if (echo > "/dev/tcp/127.0.0.1/${PORT}") >/dev/null 2>&1; then
   exit 0
 fi
 exit 1
