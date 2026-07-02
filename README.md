@@ -13,11 +13,14 @@ Single-host docker-compose deployment of [ProjectSkyfire/SkyFire_548](https://gi
 
 ```bash
 cp .env.example .env
+# Create host bind-mount source dirs so docker compose doesn't choke on
+# the first run:
+mkdir -p db-init client_data
 # Generate two passwords:
 sed -i "s/^MYSQL_ROOT_PASSWORD=.*/MYSQL_ROOT_PASSWORD=$(openssl rand -hex 24)/" .env
 sed -i "s/^SKYFIRE_DB_PASSWORD=.*/SKYFIRE_DB_PASSWORD=$(openssl rand -hex 24)/" .env
 # Set ARTIFACT_REPO to <owner>/<name> of this repo:
-ARTIFACT_REPO_VAL=$(git config --get remote.origin.url | sed 's#.*github.com[:/]##; s#.git$##')
+ARTIFACT_REPO_VAL=$(git config --get remote.origin.url | sed -E 's#^(git@|https?://)github.com[:/]##; s#\.git$##')
 sed -i "s|^ARTIFACT_REPO=.*|ARTIFACT_REPO=${ARTIFACT_REPO_VAL}|" .env
 ```
 
@@ -52,9 +55,9 @@ Expected: all `[ OK ]` lines and a final `[smoke] all checks passed`.
 
 ## Reset
 
-`docker compose down -v` wipes **everything** (mysql data, configs). Destructive — only when you mean it.
+`docker compose down -v` wipes **everything** — mysql data **and** the named volumes `auth_etc` / `world_etc`, which on first start were seeded from the in-image `*.conf.dist` templates. The next `compose up` will re-copy the .dist files and re-substitute env values, so any operator edits you made to `authserver.conf` / `worldserver.conf` will be lost. Destructive — only run this when you actually want to start from scratch and re-edit your configs.
 
-`docker compose down` keeps volumes for next start.
+`docker compose down` (no `-v`) keeps all volumes, so configs and mysql data survive. Use this for routine restarts.
 
 ## Networking
 
@@ -66,7 +69,14 @@ Expected: all `[ OK ]` lines and a final `[smoke] all checks passed`.
 
 ## Local dev builds
 
-```bash
-./scripts/dev-build.sh    # uses ./dist/ as output
-ARTIFACT_TAG=local docker compose build
-```
+`scripts/dev-build.sh` builds SkyFire_548 from source and produces
+`dist/skyfire-authserver-bin.tar.gz` and `dist/skyfire-worldserver-bin.tar.gz`
+on the host. Useful for `tar -xzf … -C /opt/skyfire` on a host that already
+has the toolchain, or for swapping a tarball into a custom Dockerfile.
+
+The Dockerfiles in this repo always `curl` from a GitHub Release tagged
+`authserver-${ARTIFACT_TAG}` / `worldserver-${ARTIFACT_TAG}` and do **not**
+consume the `./dist/` output. Setting `ARTIFACT_TAG=local` in `.env` will
+make `docker compose build` 404 against the GitHub Releases API — if you want
+the local tarball, extract it into `/opt/skyfire` yourself or build a custom
+image that does the copy.
