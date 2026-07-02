@@ -23,7 +23,68 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
-    # NO ports: clause — mysql stays internal
+
+  authserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.authserver
+      args:
+        ARTIFACT_REPO: ${ARTIFACT_REPO:?ARTIFACT_REPO required (owner/repo)}
+        ARTIFACT_TAG: ${ARTIFACT_TAG:-latest}
+    image: skyfire-548/authserver:local
+    container_name: skyfire-authserver
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: ${SKYFIRE_DB_USER}
+      MYSQL_PASSWORD: ${SKYFIRE_DB_PASSWORD}
+      MYSQL_DB: ${SKYFIRE_DB_NAME_AUTH}
+      SERVICE: auth
+      BINARY: authserver
+    volumes:
+      - auth_etc:/opt/skyfire/etc
+    networks:
+      - skyfire-net
+    ports:
+      - "3724:3724"
+    stop_grace_period: 30s
+
+  worldserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.worldserver
+      args:
+        ARTIFACT_REPO: ${ARTIFACT_REPO:?ARTIFACT_REPO required (owner/repo)}
+        ARTIFACT_TAG: ${ARTIFACT_TAG:-latest}
+    image: skyfire-548/worldserver:local
+    container_name: skyfire-worldserver
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: ${SKYFIRE_DB_USER}
+      MYSQL_PASSWORD: ${SKYFIRE_DB_PASSWORD}
+      MYSQL_DB: ${SKYFIRE_DB_NAME_WORLD}
+      SERVICE: world
+      BINARY: worldserver
+    volumes:
+      - world_etc:/opt/skyfire/etc
+      - ./client_data:/opt/skyfire/data:ro
+    networks:
+      - skyfire-net
+    ports:
+      - "8085:8085"
+    # Worldserver takes time to flush DB on graceful shutdown.
+    stop_grace_period: 60s
 
 volumes:
   mysql_data:
+  auth_etc:
+  world_etc:
