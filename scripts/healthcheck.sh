@@ -3,6 +3,11 @@
 # Exits 0 if a connection succeeds, 1 if refused, 2 on usage error.
 set -euo pipefail
 
+if ! [[ "${HEALTHCHECK_PORT}" =~ ^[0-9]+$ ]] || [ "${HEALTHCHECK_PORT}" -lt 1 ] || [ "${HEALTHCHECK_PORT}" -gt 65535 ]; then
+  echo "healthcheck: invalid HEALTHCHECK_PORT='${HEALTHCHECK_PORT}'" >&2
+  exit 2
+fi
+
 PORT="${HEALTHCHECK_PORT:-3724}"
 HOST="${HEALTHCHECK_HOST:-127.0.0.1}"
 
