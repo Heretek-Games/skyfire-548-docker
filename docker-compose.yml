@@ -1,0 +1,29 @@
+name: skyfire-548
+
+networks:
+  skyfire-net:
+    driver: bridge
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: skyfire-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD required}
+      MYSQL_DATABASE: ${SKYFIRE_DB_NAME_AUTH}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db-init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - skyfire-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    # NO ports: clause — mysql stays internal
+
+volumes:
+  mysql_data:
