@@ -1,0 +1,8 @@
+# Local artifacts
+.env
+client_data/
+db-init/
+dist/
+
+# Tooling sidecars
+mitm_mcp_traffic.db
