@@ -83,8 +83,8 @@ jobs:
             -DNOPCH=1 \
             -DCONF_DIR=/opt/skyfire/etc \
             -DLIBSDIR=/opt/skyfire/lib64 \
-            -DAUTH_SERVER=ON \
-            -DSERVERS=OFF
+            -DSERVERS=ON \
+            -DAUTH_SERVER=ON
 
       - name: Build and install
         working-directory: src
@@ -181,8 +181,8 @@ jobs:
             -DNOPCH=1 \
             -DCONF_DIR=/opt/skyfire/etc \
             -DLIBSDIR=/opt/skyfire/lib64 \
-            -DAUTH_SERVER=OFF \
-            -DSERVERS=ON
+            -DSERVERS=ON \
+            -DAUTH_SERVER=ON
 
       - name: Build and install
         working-directory: src
