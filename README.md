@@ -17,7 +17,8 @@ cp .env.example .env
 sed -i "s/^MYSQL_ROOT_PASSWORD=.*/MYSQL_ROOT_PASSWORD=$(openssl rand -hex 24)/" .env
 sed -i "s/^SKYFIRE_DB_PASSWORD=.*/SKYFIRE_DB_PASSWORD=$(openssl rand -hex 24)/" .env
 # Set ARTIFACT_REPO to <owner>/<name> of this repo:
-echo "ARTIFACT_REPO=$(git config --get remote.origin.url | sed 's#.*github.com[:/]##; s#.git$##')" >> .env
+ARTIFACT_REPO_VAL=$(git config --get remote.origin.url | sed 's#.*github.com[:/]##; s#.git$##')
+sed -i "s|^ARTIFACT_REPO=.*|ARTIFACT_REPO=${ARTIFACT_REPO_VAL}|" .env
 ```
 
 ## Database init
