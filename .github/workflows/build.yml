@@ -55,10 +55,14 @@ jobs:
       - name: Build and install OpenSSL 4.0.0
         run: |
           cd /tmp/deps
-          wget -q https://www.openssl.org/source/openssl-4.0.0.tar.gz
+          wget -qL https://www.openssl.org/source/openssl-4.0.0.tar.gz
           tar -xzf openssl-4.0.0.tar.gz
           cd openssl-4.0.0
-          ./Configure --prefix=/opt/openssl-4.0.0 enable-legacy-provider shared
+          ./Configure linux-x86_64 \
+            --prefix=/opt/openssl-4.0.0 \
+            --openssldir=/opt/openssl-4.0.0/ssl \
+            shared \
+            enable-legacy
           make -j"$(nproc)"
           sudo make install
 
@@ -149,10 +153,14 @@ jobs:
       - name: Build and install OpenSSL 4.0.0
         run: |
           cd /tmp/deps
-          wget -q https://www.openssl.org/source/openssl-4.0.0.tar.gz
+          wget -qL https://www.openssl.org/source/openssl-4.0.0.tar.gz
           tar -xzf openssl-4.0.0.tar.gz
           cd openssl-4.0.0
-          ./Configure --prefix=/opt/openssl-4.0.0 enable-legacy-provider shared
+          ./Configure linux-x86_64 \
+            --prefix=/opt/openssl-4.0.0 \
+            --openssldir=/opt/openssl-4.0.0/ssl \
+            shared \
+            enable-legacy
           make -j"$(nproc)"
           sudo make install
 
