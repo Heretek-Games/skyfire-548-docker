@@ -19,6 +19,10 @@ jobs:
           path: src
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
+      - name: Compute short SHA
+        id: short
+        run: echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
       - name: Enable universe
         run: |
           sudo apt update
@@ -96,7 +100,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: authserver-${{ github.sha }}
+          tag_name: authserver-${{ steps.short.outputs.sha }}
           files: skyfire-authserver-bin.tar.gz
 
   build-worldserver:
@@ -108,6 +112,10 @@ jobs:
           repository: ProjectSkyfire/SkyFire_548
           path: src
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Compute short SHA
+        id: short
+        run: echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: Enable universe
         run: |
@@ -190,5 +198,5 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: worldserver-${{ github.sha }}
+          tag_name: worldserver-${{ steps.short.outputs.sha }}
           files: skyfire-worldserver-bin.tar.gz
