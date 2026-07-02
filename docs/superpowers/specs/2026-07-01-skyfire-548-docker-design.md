@@ -26,6 +26,27 @@ Three services in one docker-compose project on a user-defined bridge network `s
 
 `authserver` and `worldserver` declare `depends_on: { mysql: { condition: service_healthy } }`. Compose `restart: unless-stopped` on every service.
 
+## Repository layout
+
+```
+.
+├── docker-compose.yml
+├── .env.example                    # MYSQL_*, SKYFIRE_* secrets (committed)
+├── README.md                       # operator quick-start
+├── Dockerfile.authserver
+├── Dockerfile.worldserver
+├── .github/workflows/build.yml     # CI: compile, publish artifacts
+├── scripts/
+│   ├── entrypoint.sh               # pre-flight + exec wrapper
+│   ├── healthcheck.sh              # TCP probe for auth/world
+│   ├── smoke.sh                    # end-to-end smoke test
+│   └── dev-build.sh                # local build → dist/ for ARTIFACT_TAG=local
+├── client_data/                    # bind-mount source (user-populated, gitignored)
+├── db-init/                        # bind-mount source (user-populated, gitignored)
+└── docs/
+    └── superpowers/specs/2026-07-01-skyfire-548-docker-design.md
+```
+
 ## Build pipeline (GitHub Actions)
 
 Workflow `.github/workflows/build.yml`:
@@ -37,7 +58,9 @@ Workflow `.github/workflows/build.yml`:
   2. Boost 1.91.0 downloaded from `https://archives.boost.io/release/1.91.0/source/`, installed with `b2 install --prefix=/opt/boost_1_91_0 --with-headers`.
   3. OpenSSL 4.0.0 built and installed into `/opt/openssl-4.0.0` with the legacy provider enabled (per the wiki troubleshooting section).
   4. `git clone https://github.com/ProjectSkyfire/SkyFire_548.git`, `git checkout ${{ github.sha }}` on main push.
-  5. `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/opt/skyfire -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14 -DBOOST_ROOT=/opt/boost_1_91_0 -DOPENSSL_ROOT_DIR=/opt/openssl-4.0.0 -DTOOLS=OFF -DNOPCH=1` plus `-DAUTH_SERVER=ON -DSERVERS=OFF` (or the inverse).
+  5. cmake configure — `cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/opt/skyfire -DCMAKE_C_COMPILER=gcc-14 -DCMAKE_CXX_COMPILER=g++-14 -DBOOST_ROOT=/opt/boost_1_91_0 -DOPENSSL_ROOT_DIR=/opt/openssl-4.0.0 -DTOOLS=OFF -DNOPCH=1 -DCONF_DIR=/opt/skyfire/etc -DLIBSDIR=/opt/skyfire/lib64`. Per-job flags:
+     - `build-authserver` job adds `-DAUTH_SERVER=ON -DSERVERS=OFF`.
+     - `build-worldserver` job adds `-DAUTH_SERVER=OFF -DSERVERS=ON`.
   6. `cmake --build build --target install`.
 - Artifact packaging: tar `bin/<target>` + `lib64/*` + `share/skyfire-*` into `skyfire-<target>-bin.tar.gz` and upload as workflow artifact on PRs, GitHub Release on main pushes (release tag `authserver-<sha>` / `worldserver-<sha>`).
 
@@ -48,13 +71,14 @@ Workflow `.github/workflows/build.yml`:
 1. `FROM debian:12-slim` — install runtime libs only (`libssl3`, `libmysqlclient21`, `libreadline8`, `libbz2-1.0`, `zlib1g`, `libgcc-s1`, `libstdc++6`, `ca-certificates`).
 2. `ARG ARTIFACT_TAG=latest` — pin to a CI release tag.
 3. `ARG TARGET=authserver` — distinguishes which binary to extract.
-4. `ADD https://github.com/<owner>/<repo>/releases/download/${TARGET}-${ARTIFACT_TAG}/skyfire-${TARGET}-bin.tar.gz /tmp/`
-5. `RUN tar -xzf /tmp/skyfire-${TARGET}-bin.tar.gz -C /opt && rm /tmp/skyfire-${TARGET}-bin.tar.gz`
-6. `COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh` — wraps binary with `exec`, traps SIGTERM, runs pre-flight checks.
-7. `COPY scripts/healthcheck.sh /usr/local/bin/healthcheck.sh`
-8. `USER skyfire:skyfire` (UID/GID 999). Binaries installed with matching ownership.
-9. `ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]`
-10. `HEALTHCHECK CMD /usr/local/bin/healthcheck.sh`
+4. `ARG ARTIFACT_REPO=<this-repo-owner>/<this-repo-name>` — overridable for forks.
+5. `ADD https://github.com/${ARTIFACT_REPO}/releases/download/${TARGET}-${ARTIFACT_TAG}/skyfire-${TARGET}-bin.tar.gz /tmp/`
+6. `RUN tar -xzf /tmp/skyfire-${TARGET}-bin.tar.gz -C /opt && rm /tmp/skyfire-${TARGET}-bin.tar.gz`
+7. `COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh` — wraps binary with `exec`, traps SIGTERM, runs pre-flight checks.
+8. `COPY scripts/healthcheck.sh /usr/local/bin/healthcheck.sh`
+9. `USER skyfire:skyfire` (UID/GID 999). Binaries installed with matching ownership.
+10. `ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]`
+11. `HEALTHCHECK CMD /usr/local/bin/healthcheck.sh`
 
 Run as non-root. All filesystem paths under `/opt/skyfire`. Configs in `/opt/skyfire/etc`.
 
