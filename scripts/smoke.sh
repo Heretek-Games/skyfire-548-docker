@@ -2,10 +2,6 @@
 # Smoke-test a running skyfire-548 stack. Exits non-zero on first failure.
 set -euo pipefail
 
-MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD required}"
-AUTH_PORT="${AUTH_PORT:-3724}"
-WORLD_PORT="${WORLD_PORT:-8085}"
-
 usage() {
   cat <<EOF
 Usage: $(basename "$0")
@@ -22,9 +18,14 @@ Checks:
 EOF
 }
 
+# Handle --help BEFORE requiring env so it works in a clean shell.
 if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
   usage; exit 0
 fi
+
+MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD required}"
+AUTH_PORT="${AUTH_PORT:-3724}"
+WORLD_PORT="${WORLD_PORT:-8085}"
 
 fail() { printf '\033[1;31m[FAIL]\033[0m %s\n' "$*" >&2; exit 1; }
 ok()   { printf '\033[1;32m[ OK]\033[0m %s\n' "$*"; }
