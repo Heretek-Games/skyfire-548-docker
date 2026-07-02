@@ -1,0 +1,194 @@
+name: build
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-authserver:
+    name: build authserver
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ProjectSkyfire/SkyFire_548
+          path: src
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Enable universe
+        run: |
+          sudo apt update
+          sudo apt install -y software-properties-common
+          sudo add-apt-repository -y universe
+          sudo apt update
+
+      - name: Install build deps
+        run: |
+          sudo apt install -y \
+            build-essential gcc-14 g++-14 cmake ninja-build git wget \
+            ca-certificates ccache perl pkg-config bzip2 \
+            libbz2-dev libreadline-dev zlib1g-dev default-libmysqlclient-dev
+
+      - name: Install Boost 1.91.0
+        run: |
+          mkdir -p /tmp/deps && cd /tmp/deps
+          wget -q https://archives.boost.io/release/1.91.0/source/boost_1_91_0.tar.gz
+          tar -xzf boost_1_91_0.tar.gz
+          cd boost_1_91_0
+          ./bootstrap.sh
+          sudo ./b2 install --prefix=/opt/boost_1_91_0 --with-headers -j"$(nproc)"
+
+      - name: Build and install OpenSSL 4.0.0
+        run: |
+          cd /tmp/deps
+          wget -q https://www.openssl.org/source/openssl-4.0.0.tar.gz
+          tar -xzf openssl-4.0.0.tar.gz
+          cd openssl-4.0.0
+          ./Configure --prefix=/opt/openssl-4.0.0 enable-legacy-provider shared
+          make -j"$(nproc)"
+          sudo make install
+
+      - name: Configure SkyFire (authserver only)
+        working-directory: src
+        env:
+          CC: gcc-14
+          CXX: g++-14
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_INSTALL_PREFIX=/opt/skyfire \
+            -DCMAKE_C_COMPILER=$CC \
+            -DCMAKE_CXX_COMPILER=$CXX \
+            -DBOOST_ROOT=/opt/boost_1_91_0 \
+            -DOPENSSL_ROOT_DIR=/opt/openssl-4.0.0 \
+            -DTOOLS=OFF \
+            -DNOPCH=1 \
+            -DCONF_DIR=/opt/skyfire/etc \
+            -DLIBSDIR=/opt/skyfire/lib64 \
+            -DAUTH_SERVER=ON \
+            -DSERVERS=OFF
+
+      - name: Build and install
+        working-directory: src
+        run: sudo cmake --build build --target install
+
+      - name: Package artifact
+        run: |
+          mkdir -p pkg/bin pkg/etc pkg/lib64 pkg/share
+          sudo cp /opt/skyfire/bin/authserver pkg/bin/
+          sudo cp -r /opt/skyfire/etc/*.conf.dist pkg/etc/ 2>/dev/null || true
+          sudo cp -r /opt/skyfire/lib64/. pkg/lib64/
+          sudo cp -r /opt/skyfire/share/. pkg/share/ 2>/dev/null || true
+          sudo chown -R "$USER" pkg
+          tar -C pkg -czf skyfire-authserver-bin.tar.gz .
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: skyfire-authserver-bin
+          path: skyfire-authserver-bin.tar.gz
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: authserver-${{ github.sha }}
+          files: skyfire-authserver-bin.tar.gz
+
+  build-worldserver:
+    name: build worldserver
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ProjectSkyfire/SkyFire_548
+          path: src
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Enable universe
+        run: |
+          sudo apt update
+          sudo apt install -y software-properties-common
+          sudo add-apt-repository -y universe
+          sudo apt update
+
+      - name: Install build deps
+        run: |
+          sudo apt install -y \
+            build-essential gcc-14 g++-14 cmake ninja-build git wget \
+            ca-certificates ccache perl pkg-config bzip2 \
+            libbz2-dev libreadline-dev zlib1g-dev default-libmysqlclient-dev
+
+      - name: Install Boost 1.91.0
+        run: |
+          mkdir -p /tmp/deps && cd /tmp/deps
+          wget -q https://archives.boost.io/release/1.91.0/source/boost_1_91_0.tar.gz
+          tar -xzf boost_1_91_0.tar.gz
+          cd boost_1_91_0
+          ./bootstrap.sh
+          sudo ./b2 install --prefix=/opt/boost_1_91_0 --with-headers -j"$(nproc)"
+
+      - name: Build and install OpenSSL 4.0.0
+        run: |
+          cd /tmp/deps
+          wget -q https://www.openssl.org/source/openssl-4.0.0.tar.gz
+          tar -xzf openssl-4.0.0.tar.gz
+          cd openssl-4.0.0
+          ./Configure --prefix=/opt/openssl-4.0.0 enable-legacy-provider shared
+          make -j"$(nproc)"
+          sudo make install
+
+      - name: Configure SkyFire (worldserver only)
+        working-directory: src
+        env:
+          CC: gcc-14
+          CXX: g++-14
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_INSTALL_PREFIX=/opt/skyfire \
+            -DCMAKE_C_COMPILER=$CC \
+            -DCMAKE_CXX_COMPILER=$CXX \
+            -DBOOST_ROOT=/opt/boost_1_91_0 \
+            -DOPENSSL_ROOT_DIR=/opt/openssl-4.0.0 \
+            -DTOOLS=OFF \
+            -DNOPCH=1 \
+            -DCONF_DIR=/opt/skyfire/etc \
+            -DLIBSDIR=/opt/skyfire/lib64 \
+            -DAUTH_SERVER=OFF \
+            -DSERVERS=ON
+
+      - name: Build and install
+        working-directory: src
+        run: sudo cmake --build build --target install
+
+      - name: Package artifact
+        run: |
+          mkdir -p pkg/bin pkg/etc pkg/lib64 pkg/share pkg/tools
+          sudo cp /opt/skyfire/bin/worldserver pkg/bin/
+          # Include the extractors so ops can re-extract client data inside the worldserver image
+          for tool in mapextractor vmapextractor mmaps_generator; do
+            sudo cp /opt/skyfire/bin/$tool pkg/bin/ 2>/dev/null || true
+          done
+          sudo cp -r /opt/skyfire/etc/*.conf.dist pkg/etc/ 2>/dev/null || true
+          sudo cp -r /opt/skyfire/lib64/. pkg/lib64/
+          sudo cp -r /opt/skyfire/share/. pkg/share/ 2>/dev/null || true
+          sudo chown -R "$USER" pkg
+          tar -C pkg -czf skyfire-worldserver-bin.tar.gz .
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: skyfire-worldserver-bin
+          path: skyfire-worldserver-bin.tar.gz
+
+      - name: Publish GitHub Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: worldserver-${{ github.sha }}
+          files: skyfire-worldserver-bin.tar.gz
