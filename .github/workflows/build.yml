@@ -93,9 +93,10 @@ jobs:
       - name: Package artifact
         run: |
           mkdir -p pkg/bin pkg/etc pkg/lib64 pkg/share
-          sudo cp /opt/skyfire/bin/authserver pkg/bin/
-          sudo cp -r /opt/skyfire/etc/*.conf.dist pkg/etc/ 2>/dev/null || true
-          sudo cp -r /opt/skyfire/lib64/. pkg/lib64/
+          sudo cp /opt/skyfire/bin/authserver pkg/bin/ || { echo "authserver binary not found"; exit 1; }
+          sudo cp -r /opt/skyfire/etc/. pkg/etc/ 2>/dev/null || true
+          sudo cp -r /opt/skyfire/lib64/. pkg/lib64/ 2>/dev/null || true
+          sudo cp -r /opt/skyfire/lib/. pkg/lib64/ 2>/dev/null || true
           sudo cp -r /opt/skyfire/share/. pkg/share/ 2>/dev/null || true
           sudo chown -R "$USER" pkg
           tar -C pkg -czf skyfire-authserver-bin.tar.gz .
@@ -191,13 +192,14 @@ jobs:
       - name: Package artifact
         run: |
           mkdir -p pkg/bin pkg/etc pkg/lib64 pkg/share pkg/tools
-          sudo cp /opt/skyfire/bin/worldserver pkg/bin/
+          sudo cp /opt/skyfire/bin/worldserver pkg/bin/ || { echo "worldserver binary not found"; exit 1; }
           # Include the extractors so ops can re-extract client data inside the worldserver image
           for tool in mapextractor vmapextractor mmaps_generator; do
             sudo cp /opt/skyfire/bin/$tool pkg/bin/ 2>/dev/null || true
           done
-          sudo cp -r /opt/skyfire/etc/*.conf.dist pkg/etc/ 2>/dev/null || true
-          sudo cp -r /opt/skyfire/lib64/. pkg/lib64/
+          sudo cp -r /opt/skyfire/etc/. pkg/etc/ 2>/dev/null || true
+          sudo cp -r /opt/skyfire/lib64/. pkg/lib64/ 2>/dev/null || true
+          sudo cp -r /opt/skyfire/lib/. pkg/lib64/ 2>/dev/null || true
           sudo cp -r /opt/skyfire/share/. pkg/share/ 2>/dev/null || true
           sudo chown -R "$USER" pkg
           tar -C pkg -czf skyfire-worldserver-bin.tar.gz .
