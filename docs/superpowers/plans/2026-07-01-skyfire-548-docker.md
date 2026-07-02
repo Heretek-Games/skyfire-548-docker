@@ -651,16 +651,17 @@ build_one() {
     -DLIBSDIR=/opt/skyfire/lib64 \
     $extra_flags
 
-  log "Building $target"
-  cmake --build "$WORK/build-$target" --target install
+  log "Building + installing $target (sudo required for /opt/skyfire)"
+  sudo cmake --build "$WORK/build-$target" --target install
 
   log "Packaging $target"
   local pkg="$WORK/pkg-$target"
   mkdir -p "$pkg/bin" "$pkg/lib64" "$pkg/etc" "$pkg/share"
-  cp "/opt/skyfire/bin/$target" "$pkg/bin/"
-  cp -r /opt/skyfire/lib64/. "$pkg/lib64/"
-  cp -r /opt/skyfire/etc/*.conf.dist "$pkg/etc/" 2>/dev/null || true
-  cp -r /opt/skyfire/share/. "$pkg/share/" 2>/dev/null || true
+  sudo cp "/opt/skyfire/bin/$target" "$pkg/bin/"
+  sudo cp -r /opt/skyfire/lib64/. "$pkg/lib64/"
+  sudo cp -r /opt/skyfire/etc/*.conf.dist "$pkg/etc/" 2>/dev/null || true
+  sudo cp -r /opt/skyfire/share/. "$pkg/share/" 2>/dev/null || true
+  sudo chown -R "$USER" "$pkg"
   tar -C "$pkg" -czf "$BUILD_DIR/skyfire-${target}-bin.tar.gz" .
 }
 
