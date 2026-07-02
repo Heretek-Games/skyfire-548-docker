@@ -1,0 +1,62 @@
+# syntax=docker/dockerfile:1.7
+
+# Runtime-only image for SkyFire_548 authserver.
+# Binaries are pulled in from a GitHub Release published by
+# .github/workflows/build.yml. See docker-compose.yml for ARTIFACT_REPO.
+
+FROM debian:12-slim
+
+ARG TARGET=authserver
+ARG ARTIFACT_TAG=latest
+# Set this to <owner>/<repo> when building, e.g. octocat/skyfire-548.
+ARG ARTIFACT_REPO=""
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      libssl3 \
+      default-mysql-client \
+      libreadline8 \
+      libbz2-1.0 \
+      zlib1g \
+      libgcc-s1 \
+      libstdc++6 \
+      curl \
+      tini \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --system --gid 999 skyfire \
+ && useradd  --system --uid 999 --gid skyfire --home /opt/skyfire --shell /usr/sbin/nologin skyfire
+
+WORKDIR /opt/skyfire
+
+# Pull the prebuilt artifact. We only ADD if ARTIFACT_REPO is set;
+# `docker compose build` always sets it.
+RUN if [ -z "${ARTIFACT_REPO}" ]; then \
+      echo "ARTIFACT_REPO build arg is required" >&2; exit 1; \
+    fi \
+ && curl -fsSL -o /tmp/skyfire.tar.gz \
+      "https://github.com/${ARTIFACT_REPO}/releases/download/${TARGET}-${ARTIFACT_TAG}/skyfire-${TARGET}-bin.tar.gz" \
+ && tar -xzf /tmp/skyfire.tar.gz -C /opt/skyfire \
+ && rm /tmp/skyfire.tar.gz \
+ && chown -R skyfire:skyfire /opt/skyfire
+
+COPY scripts/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY scripts/healthcheck.sh /usr/local/bin/healthcheck.sh
+
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/healthcheck.sh
+
+ENV SERVICE=auth
+ENV BINARY=authserver
+ENV CONFIG_FILE=/opt/skyfire/etc/authserver.conf
+
+USER skyfire:skyfire
+
+EXPOSE 3724
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=5 \
+  CMD /usr/local/bin/healthcheck.sh
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]
