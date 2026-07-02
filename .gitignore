@@ -6,3 +6,6 @@ dist/
 
 # Tooling sidecars
 mitm_mcp_traffic.db
+
+# SDD/planning meta-artifacts (not part of the dockerized project)
+.superpowers/
