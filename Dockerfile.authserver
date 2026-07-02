@@ -17,7 +17,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       ca-certificates \
       libssl3 \
-      default-mysql-client \
+      libmariadb3 \
       libreadline8 \
       libbz2-1.0 \
       zlib1g \
