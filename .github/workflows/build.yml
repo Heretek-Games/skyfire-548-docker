@@ -4,6 +4,12 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      skyfire_ref:
+        description: 'ProjectSkyfire/SkyFire_548 git ref to build (branch, tag, or SHA)'
+        required: false
+        default: 'main'
+        type: string
 
 permissions:
   contents: write
@@ -17,7 +23,7 @@ jobs:
         with:
           repository: ProjectSkyfire/SkyFire_548
           path: src
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.skyfire_ref || 'main' }}
 
       - name: Compute short SHA
         id: short
@@ -111,7 +117,7 @@ jobs:
         with:
           repository: ProjectSkyfire/SkyFire_548
           path: src
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.skyfire_ref || 'main' }}
 
       - name: Compute short SHA
         id: short
